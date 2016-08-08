@@ -90,5 +90,31 @@ func (s *Service) describeInstances(instanceID string) (*ec2.DescribeInstancesOu
 		},
 	}
 	resp, err := s.DescribeInstances(params)
-	return resp, errors.Wrap(err, "failed to describeInstances")
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to describeInstances")
+	}
+	return resp, nil
+}
+
+func (s *Service) readNameTag(instanceID string) (string, error) {
+	resp, err := s.describeInstances(instanceID)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to read name tag")
+	}
+	tag, err := func(resp *ec2.DescribeInstancesOutput) (string, error) {
+		for _, res := range resp.Reservations {
+			for _, res := range res.Instances {
+				for _, res := range res.Tags {
+					if *res.Key == "Name" {
+						return *res.Value, nil
+					}
+				}
+			}
+		}
+		return "", nil
+	}(resp)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to read name tag")
+	}
+	return tag, nil
 }
