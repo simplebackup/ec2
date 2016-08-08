@@ -99,7 +99,7 @@ func (s *Service) describeInstances(instanceID string) (*ec2.DescribeInstancesOu
 func (s *Service) readNameTag(instanceID string) (string, error) {
 	resp, err := s.describeInstances(instanceID)
 	if err != nil {
-		return "", errors.Wrap(err, "failed to read name tag")
+		return "", err
 	}
 	tag, err := func(resp *ec2.DescribeInstancesOutput) (string, error) {
 		for _, res := range resp.Reservations {
@@ -117,4 +117,20 @@ func (s *Service) readNameTag(instanceID string) (string, error) {
 		return "", errors.Wrap(err, "failed to read name tag")
 	}
 	return tag, nil
+}
+
+func (s *Service) describeAllVolumeIds(instanceID string) ([]string, error) {
+	resp, err := s.describeInstances(instanceID)
+	if err != nil {
+		return nil, err
+	}
+	var v []string
+	for _, resp := range resp.Reservations {
+		for _, resp := range resp.Instances {
+			for _, resp := range resp.BlockDeviceMappings {
+				v = append(v, *resp.Ebs.VolumeId)
+			}
+		}
+	}
+	return v, nil
 }
