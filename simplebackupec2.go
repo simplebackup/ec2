@@ -14,14 +14,14 @@ type Service struct {
 }
 
 // NewConfig returns a new Config pointer that can be chained with builder methods to set multiple configuration values inline without using pointers.
-//  c := NewConfig().WithRegion("ap-northeast-1").WithCredentials(creds)
+//  c := simplebackupec2.NewConfig().WithRegion("ap-northeast-1").WithCredentials(creds)
 func NewConfig() *aws.Config {
 	return &aws.Config{}
 }
 
 // NewService creates a new instance of the EC2 client with a session.
-//  c := NewConfig().WithRegion("ap-northeast-1").WithCredentials(creds)
-//  s, err := NewService(c)
+//  c := simplebackupec2.NewConfig().WithRegion("ap-northeast-1").WithCredentials(creds)
+//  s, err := simplebackupec2.NewService(c)
 func NewService(c *aws.Config) (*Service, error) {
 	sess, err := session.NewSession(c)
 	if err != nil {
@@ -32,8 +32,8 @@ func NewService(c *aws.Config) (*Service, error) {
 
 // CreateSnapshots create EBS snapshot.
 // To create a snapshot of all the volumes that have instances.
-//  c := NewConfig().WithRegion("ap-northeast-1").WithCredentials(creds)
-//  s, _ := NewService(c)
+//  c := simplebackupec2.NewConfig().WithRegion("ap-northeast-1").WithCredentials(creds)
+//  s, _ := simplebackupec2.NewService(c)
 //  err := s.CreateSnapshots("i-xxxxxxxx")
 func (s *Service) CreateSnapshots(instanceID string) (string, error) {
 	pp.Print(s)
@@ -42,8 +42,8 @@ func (s *Service) CreateSnapshots(instanceID string) (string, error) {
 }
 
 // RotateSnapshot manages the number of snapshot of a specific volume.
-//  c := NewConfig().WithRegion("ap-northeast-1").WithCredentials(creds)
-//  s, _ := NewService(c)
+//  c := simplebackupec2.NewConfig().WithRegion("ap-northeast-1").WithCredentials(creds)
+//  s, _ := simplebackupec2.NewService(c)
 //  err := s.RotateSnapshot("v-xxxxxxxx", 5)
 func (s *Service) RotateSnapshot(volumeID string, i int) error {
 	pp.Print(s)
@@ -53,8 +53,8 @@ func (s *Service) RotateSnapshot(volumeID string, i int) error {
 }
 
 // RotateSnapshots manages the number of snapshot of a specific instance's volumes.
-//  c := NewConfig().WithRegion("ap-northeast-1").WithCredentials(creds)
-//  s, _ := NewService(c)
+//  c := simplebackupec2.NewConfig().WithRegion("ap-northeast-1").WithCredentials(creds)
+//  s, _ := simplebackupec2.NewService(c)
 //  err := s.RotateSnapshots("i-xxxxxxxx", 5)
 func (s *Service) RotateSnapshots(instanceID string, i int) error {
 	pp.Print(s)
@@ -64,8 +64,8 @@ func (s *Service) RotateSnapshots(instanceID string, i int) error {
 }
 
 // RegisterAMI create New AMI.
-//  c := NewConfig().WithRegion("ap-northeast-1").WithCredentials(creds)
-//  s, _ := NewService(c)
+//  c := simplebackupec2.NewConfig().WithRegion("ap-northeast-1").WithCredentials(creds)
+//  s, _ := simplebackupec2.NewService(c)
 //  imageID, err := s.RegisterAMI("i-xxxxxxxx")
 func (s *Service) RegisterAMI(instanceID string) (string, error) {
 	pp.Print(s)
@@ -74,8 +74,8 @@ func (s *Service) RegisterAMI(instanceID string) (string, error) {
 }
 
 // DeregisterAMI deregister AMI.
-//  c := NewConfig().WithRegion("ap-northeast-1").WithCredentials(creds)
-//  s, _ := NewService(c)
+//  c := simplebackupec2.NewConfig().WithRegion("ap-northeast-1").WithCredentials(creds)
+//  s, _ := simplebackupec2.NewService(c)
 //  err := s.DeregisterAMI("ami-xxxxxxxx")
 func (s *Service) DeregisterAMI(imageID string) error {
 	pp.Print(s)
