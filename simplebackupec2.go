@@ -35,10 +35,25 @@ func NewService(c *aws.Config) (*Service, error) {
 //  c := simplebackupec2.NewConfig().WithRegion("ap-northeast-1").WithCredentials(creds)
 //  s, _ := simplebackupec2.NewService(c)
 //  err := s.CreateSnapshots("i-xxxxxxxx")
-func (s *Service) CreateSnapshots(instanceID string) (string, error) {
-	pp.Print(s)
-	pp.Print(instanceID)
-	return instanceID, nil
+func (s *Service) CreateSnapshots(instanceID string) error {
+	tag, err := s.readNameTag(instanceID)
+	if err != nil {
+		return errors.Wrap(err, "failed to read name tag")
+	}
+	volumeIDs, err := s.describeAllVolumeIDs(instanceID)
+	if err != nil {
+		return errors.Wrap(err, "failed to describe all volumes")
+	}
+	for _, volumeID := range volumeIDs {
+		snapshotID, err := s.createSnapshot(volumeID)
+		if err != nil {
+			return errors.Wrap(err, "failed to create snapshots")
+		}
+		if err := s.setNameTagToSnapshot(snapshotID, tag); err != nil {
+			return errors.Wrap(err, "failed to set name tag to snapshot")
+		}
+	}
+	return nil
 }
 
 // RotateSnapshot manages the number of snapshot of a specific volume.
@@ -119,7 +134,7 @@ func (s *Service) readNameTag(instanceID string) (string, error) {
 	return tag, nil
 }
 
-func (s *Service) describeAllVolumeIds(instanceID string) ([]string, error) {
+func (s *Service) describeAllVolumeIDs(instanceID string) ([]string, error) {
 	resp, err := s.describeInstances(instanceID)
 	if err != nil {
 		return nil, err
@@ -133,4 +148,34 @@ func (s *Service) describeAllVolumeIds(instanceID string) ([]string, error) {
 		}
 	}
 	return v, nil
+}
+
+func (s *Service) setNameTagToSnapshot(snapshotID, tag string) error {
+	params := &ec2.CreateTagsInput{
+		Resources: []*string{
+			aws.String(snapshotID),
+		},
+		Tags: []*ec2.Tag{
+			{
+				Key:   aws.String("Name"),
+				Value: aws.String(tag),
+			},
+		},
+	}
+	_, err := s.CreateTags(params)
+	return err
+}
+
+func (s *Service) createSnapshot(volumeID string) (string, error) {
+	d := "Created by simplebackup/ec2 from " + volumeID
+	params := &ec2.CreateSnapshotInput{
+		VolumeId:    aws.String(volumeID),
+		Description: aws.String(d),
+	}
+	resp, err := s.CreateSnapshot(params)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to create snapshot")
+	}
+	return *resp.SnapshotId, nil
+
 }
