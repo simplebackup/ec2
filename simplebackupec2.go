@@ -82,10 +82,3 @@ func (s *Service) DeregisterAMI(imageID string) error {
 	pp.Print(imageID)
 	return nil
 }
-
-func main() {
-	c := NewConfig().WithRegion("us-west-2").WithMaxRetries(10)
-	s, err := NewService(c)
-	pp.Print(s)
-	pp.Print(err)
-}
