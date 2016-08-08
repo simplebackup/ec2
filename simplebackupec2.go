@@ -82,3 +82,13 @@ func (s *Service) DeregisterAMI(imageID string) error {
 	pp.Print(imageID)
 	return nil
 }
+
+func (s *Service) describeInstances(instanceID string) (*ec2.DescribeInstancesOutput, error) {
+	params := &ec2.DescribeInstancesInput{
+		InstanceIds: []*string{
+			aws.String(instanceID),
+		},
+	}
+	resp, err := s.DescribeInstances(params)
+	return resp, errors.Wrap(err, "failed to describeInstances")
+}
