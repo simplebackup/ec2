@@ -1,6 +1,9 @@
 package simplebackupec2
 
 import (
+	"strconv"
+	"time"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -81,11 +84,28 @@ func (s *Service) RotateSnapshots(instanceID string, i int) error {
 // RegisterAMI create New AMI.
 //  c := simplebackupec2.NewConfig().WithRegion("ap-northeast-1").WithCredentials(creds)
 //  s, _ := simplebackupec2.NewService(c)
-//  imageID, err := s.RegisterAMI("i-xxxxxxxx")
-func (s *Service) RegisterAMI(instanceID string) (string, error) {
-	pp.Print(s)
-	pp.Print(instanceID)
-	return instanceID, nil
+//  imageID, err := s.RegisterAMI("i-xxxxxxxx", true)
+func (s *Service) RegisterAMI(instanceID string, noReboot bool) (string, error) {
+	tag, err := s.readNameTag(instanceID)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to read name tag")
+	}
+	description := "Created by simplebackup/ec2 from " + instanceID +
+		" at " + strconv.FormatInt(time.Now().Unix(), 10)
+	params := &ec2.CreateImageInput{
+		InstanceId:  aws.String(instanceID),
+		Name:        aws.String(description),
+		Description: aws.String(description),
+		NoReboot:    aws.Bool(noReboot),
+	}
+	resp, err := s.CreateImage(params)
+	if err != nil {
+		return "", errors.Wrap(err, "failed to create AMI")
+	}
+	if err := s.setNameTagToAMI(*resp.ImageId, tag); err != nil {
+		return *resp.ImageId, errors.Wrap(err, "failed to set name tag")
+	}
+	return *resp.ImageId, nil
 }
 
 // DeregisterAMI deregister AMI.
@@ -154,6 +174,22 @@ func (s *Service) setNameTagToSnapshot(snapshotID, tag string) error {
 	params := &ec2.CreateTagsInput{
 		Resources: []*string{
 			aws.String(snapshotID),
+		},
+		Tags: []*ec2.Tag{
+			{
+				Key:   aws.String("Name"),
+				Value: aws.String(tag),
+			},
+		},
+	}
+	_, err := s.CreateTags(params)
+	return err
+}
+
+func (s *Service) setNameTagToAMI(imageID, tag string) error {
+	params := &ec2.CreateTagsInput{
+		Resources: []*string{
+			aws.String(imageID),
 		},
 		Tags: []*ec2.Tag{
 			{
