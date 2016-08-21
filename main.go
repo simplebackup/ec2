@@ -103,7 +103,7 @@ func (s *Service) RegisterAMI(instanceID string, noReboot bool) (string, error) 
 		return "", errors.Wrap(err, "failed to create AMI")
 	}
 	if err := s.setNameTagToAMI(*resp.ImageId, tag); err != nil {
-		return *resp.ImageId, errors.Wrap(err, "failed to set name tag")
+		return *resp.ImageId, errors.Wrap(err, "create AMI is successful, but failed to set name tag")
 	}
 	return *resp.ImageId, nil
 }
