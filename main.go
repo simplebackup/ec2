@@ -75,9 +75,21 @@ func (s *Service) CreateSnapshots(instanceID string) error {
 //  s, _ := simplebackupec2.NewService(c)
 //  err := s.RotateSnapshot("v-xxxxxxxx", 5)
 func (s *Service) RotateSnapshot(volumeID string, i int) error {
-	pp.Print(s)
-	pp.Print(volumeID)
-	pp.Print(i)
+	snapshots, err := s.describeSnapshots(volumeID)
+	if err != nil {
+		return errors.Wrap(err, "failed to describe snapshot.")
+	}
+	snapshotIDs := sortSnapshots(snapshots)
+	for len(snapshotIDs) > i {
+		params := &ec2.DeleteSnapshotInput{
+			SnapshotId: aws.String(snapshotIDs[0].ID),
+		}
+		_, err := s.DeleteSnapshot(params)
+		if err != nil {
+			return errors.Wrap(err, "failed to delete snapshot.")
+		}
+		snapshotIDs = append(snapshotIDs[1:])
+	}
 	return nil
 }
 
@@ -86,9 +98,15 @@ func (s *Service) RotateSnapshot(volumeID string, i int) error {
 //  s, _ := simplebackupec2.NewService(c)
 //  err := s.RotateSnapshots("i-xxxxxxxx", 5)
 func (s *Service) RotateSnapshots(instanceID string, i int) error {
-	pp.Print(s)
-	pp.Print(instanceID)
-	pp.Print(i)
+	volumeIDs, err := s.describeAllVolumeIDs(instanceID)
+	if err != nil {
+		return errors.Wrap(err, "failed to describe all volumes")
+	}
+	for _, volumeID := range volumeIDs {
+		if err = s.RotateSnapshot(volumeID, i); err != nil {
+			return errors.Wrap(err, "failed to delete snapshot: "+volumeID)
+		}
+	}
 	return nil
 }
 
@@ -260,7 +278,7 @@ func (p snapshots) Less(i, j int) bool {
 	return p[i].StartTime < p[j].StartTime
 }
 
-func sortSnapshots(s *ec2.DescribeSnapshotsOutput) ([]snapshot, error) {
+func sortSnapshots(s *ec2.DescribeSnapshotsOutput) snapshots {
 	var snapshotIDs snapshots = make([]snapshot, 1)
 	for _, res := range s.Snapshots {
 		if snapshotIDs[0].StartTime == 0 {
@@ -277,5 +295,5 @@ func sortSnapshots(s *ec2.DescribeSnapshotsOutput) ([]snapshot, error) {
 		}
 	}
 	sort.Sort(snapshotIDs)
-	return snapshotIDs, nil
+	return snapshotIDs
 }
