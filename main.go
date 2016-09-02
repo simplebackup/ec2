@@ -1,6 +1,8 @@
 package simplebackupec2
 
 import (
+	"regexp"
+	"sort"
 	"strconv"
 	"time"
 
@@ -11,10 +13,19 @@ import (
 	"github.com/pkg/errors"
 )
 
+const description = "Created by simplebackup/ec2 from"
+
 // Service is wrapping configuration *ec2.EC2
 type Service struct {
 	*ec2.EC2
 }
+
+type snapshot struct {
+	ID        string
+	StartTime int64
+}
+
+type snapshots []snapshot
 
 // NewConfig returns a new Config pointer that can be chained with builder methods to set multiple configuration values inline without using pointers.
 //  c := simplebackupec2.NewConfig().WithRegion("ap-northeast-1").WithCredentials(creds)
@@ -90,12 +101,12 @@ func (s *Service) RegisterAMI(instanceID string, noReboot bool) (string, error) 
 	if err != nil {
 		return "", errors.Wrap(err, "failed to read name tag")
 	}
-	description := "Created by simplebackup/ec2 from " + instanceID +
+	d := description + " " + instanceID +
 		" at " + strconv.FormatInt(time.Now().Unix(), 10)
 	params := &ec2.CreateImageInput{
 		InstanceId:  aws.String(instanceID),
-		Name:        aws.String(description),
-		Description: aws.String(description),
+		Name:        aws.String(d),
+		Description: aws.String(d),
 		NoReboot:    aws.Bool(noReboot),
 	}
 	resp, err := s.CreateImage(params)
@@ -203,7 +214,7 @@ func (s *Service) setNameTagToAMI(imageID, tag string) error {
 }
 
 func (s *Service) createSnapshot(volumeID string) (string, error) {
-	d := "Created by simplebackup/ec2 from " + volumeID
+	d := description + " " + volumeID
 	params := &ec2.CreateSnapshotInput{
 		VolumeId:    aws.String(volumeID),
 		Description: aws.String(d),
@@ -228,4 +239,43 @@ func (s *Service) describeSnapshots(volumeID string) (*ec2.DescribeSnapshotsOutp
 		},
 	}
 	return s.DescribeSnapshots(params)
+}
+
+func isOwn(d string) bool {
+	if m, _ := regexp.MatchString(description+".*", d); !m {
+		return false
+	}
+	return true
+}
+
+func (p snapshots) Len() int {
+	return len(p)
+}
+
+func (p snapshots) Swap(i, j int) {
+	p[i], p[j] = p[j], p[i]
+}
+
+func (p snapshots) Less(i, j int) bool {
+	return p[i].StartTime < p[j].StartTime
+}
+
+func sortSnapshots(s *ec2.DescribeSnapshotsOutput) ([]snapshot, error) {
+	var snapshotIDs snapshots = make([]snapshot, 1)
+	for _, res := range s.Snapshots {
+		if snapshotIDs[0].StartTime == 0 {
+			if isOwn(*res.Description) {
+				snapshotIDs[0].ID = *res.SnapshotId
+				snapshotIDs[0].StartTime = res.StartTime.Unix()
+			}
+		} else {
+			if isOwn(*res.Description) {
+				snapshotIDs = append(snapshotIDs,
+					snapshot{*res.SnapshotId, res.StartTime.Unix()},
+				)
+			}
+		}
+	}
+	sort.Sort(snapshotIDs)
+	return snapshotIDs, nil
 }
