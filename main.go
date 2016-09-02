@@ -9,7 +9,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/k0kubun/pp"
 	"github.com/pkg/errors"
 )
 
@@ -142,8 +141,13 @@ func (s *Service) RegisterAMI(instanceID string, noReboot bool) (string, error) 
 //  s, _ := simplebackupec2.NewService(c)
 //  err := s.DeregisterAMI("ami-xxxxxxxx")
 func (s *Service) DeregisterAMI(imageID string) error {
-	pp.Print(s)
-	pp.Print(imageID)
+	params := &ec2.DeregisterImageInput{
+		ImageId: aws.String(imageID),
+	}
+	_, err := s.DeregisterImage(params)
+	if err != nil {
+		return errors.Wrap(err, "faild to deregister AMI")
+	}
 	return nil
 }
 
