@@ -215,3 +215,17 @@ func (s *Service) createSnapshot(volumeID string) (string, error) {
 	return *resp.SnapshotId, nil
 
 }
+
+func (s *Service) describeSnapshots(volumeID string) (*ec2.DescribeSnapshotsOutput, error) {
+	params := &ec2.DescribeSnapshotsInput{
+		Filters: []*ec2.Filter{
+			{
+				Name: aws.String("volume-id"),
+				Values: []*string{
+					aws.String(volumeID),
+				},
+			},
+		},
+	}
+	return s.DescribeSnapshots(params)
+}
